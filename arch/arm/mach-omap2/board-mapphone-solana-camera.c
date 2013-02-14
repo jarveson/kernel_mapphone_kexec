@@ -40,22 +40,22 @@
 
 static int mapphone_solana_ov_cam1_pre_poweron(struct v4l2_subdev *subdev) {
 	int ret;
+	struct clk *clk;
+	struct i2c_adapter *adapter;
+	struct device *i2c_dev;
 	// flip on some gpios
 	gpio_direction_output(48, 1); // 48 is selection for ov8820, 171 is for ov7739?
-	gpio_direction_output(83,1); //  cam_reset?, has to stay on for both cams 
+	gpio_direction_output(83, 1); //  cam_reset?, has to stay on for both cams 
 	
 	//enable auclk0...is on with both cams
-	struct clk *clk = NULL;
 	clk = clk_get(NULL, "auxclk0_ck");
-	clk_enable(clk);
+	ret = clk_enable(clk);
 	if(ret) {
 		pr_err("%s: could not get auxclk0_ck\n", __func__);
 		return -1;
 	}
 				
 	// enable i2c3 bus
-	struct i2c_adapter *adapter;
-	struct device *i2c_dev;
 	adapter = i2c_get_adapter(3);
 	if (!adapter) {
 		pr_err("%s: could not get i2c3 adapter\n", __func__);
@@ -76,29 +76,27 @@ static int mapphone_solana_ov_cam1_pre_poweron(struct v4l2_subdev *subdev) {
 }
 
 static int mapphone_solana_ov_cam1_post_poweroff(struct v4l2_subdev *subdev) {
+	struct clk *clk;
+	struct i2c_adapter *adapter;
+	struct device *i2c_dev;
 	//flip off GPIOS
-	gpio_free(48, 0);
-	gpio_free(83,0);
+	gpio_free(48);
+	gpio_free(83);
 
 	//disable clk
-	struct clk *clk = NULL;
 	clk = clk_get(NULL, "auxclk0_ck");
 	clk_disable(clk);
 	clk_put(clk);
 
 	//enable i2c3 idle
-	struct i2c_adapter *adapter;
-	struct device *i2c_dev;
 	adapter = i2c_get_adapter(3);
 
 	i2c_dev = adapter->dev.parent;
 	i2c_detect_ext_master(adapter);
 	i2c_put_adapter(adapter);
 	
-	ret = pm_runtime_put_sync(i2c_dev);
+	pm_runtime_put_sync(i2c_dev);
 	return 0;
-	
-return ret;
 }
 
 static struct ov8820_platform_data ov8820_cam1_platform_data = {
